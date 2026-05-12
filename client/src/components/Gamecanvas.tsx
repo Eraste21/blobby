@@ -1,4 +1,15 @@
 import { useEffect, useRef } from "react"
+import { map, zone, game, camera, walls, stars, particles } from "./game/config"
+import { drawWalls } from "./game/drawWalls"
+import { movement } from "./game/movement"
+import { drawPlayer } from "./game/drawPlayer"
+import { drawStars } from "./game/drawStars"
+import { drawParticles } from "./game/drawParticles"
+import { drawDangerZone, out_of_danger_zone } from "./game/drawZone"
+import { update_camera } from "./game/camera"
+import { endGame, endScreen } from "./game/endGame"
+import { healthBar } from "./utils/healthBar"
+import { drawTimer } from "./game/drawTimer"
 
 export const GameCanvas = (props) => {
 
@@ -16,54 +27,7 @@ export const GameCanvas = (props) => {
         canvas.width = window.innerWidth
         canvas.height = window.innerHeight
 
-        // paramétrage de la partie
-        const game = {
-            startTime: performance.now(),
-            duration: 150,
-            isOver: false,
-            result: "",
-            explosion: false,
-        }
-
-        // configuration de la map
-        const map = {
-            width: 5000,
-            height: 3500,
-        }
-
-        // création de la zone de danger
-        const zone = {
-            x: map.width / 2,
-            y: map.height / 2,
-            r: 1000,
-            rMax: 1000,
-            rMin: 350,
-            damagePerSecond: 10,
-        }
-
         let lastTime = performance.now()
-
-        // création de la caméra
-        const camera = {
-            x: 0,
-            y: 0,
-        }
-
-        // coordonnées des murs
-        const walls = [
-            { x: 450, y: 320, width: 180, height: 8 },
-            { x: 900, y: 780, width: 8, height: 170 },
-            { x: 1450, y: 420, width: 220, height: 8 },
-            { x: 2100, y: 950, width: 8, height: 190 },
-            { x: 2750, y: 520, width: 200, height: 8 },
-            { x: 600, y: 1650, width: 240, height: 8 },
-            { x: 1250, y: 1350, width: 8, height: 180 },
-            { x: 1900, y: 1750, width: 220, height: 8 },
-            { x: 2550, y: 1450, width: 8, height: 200 },
-            { x: 3300, y: 1900, width: 260, height: 8 },
-            { x: 3800, y: 700, width: 8, height: 180 },
-            { x: 4200, y: 1300, width: 230, height: 8 },
-        ]
 
         // vitesse de deplacement
         let speed = 25
@@ -74,19 +38,6 @@ export const GameCanvas = (props) => {
             y: canvas.height,
             r: 25,
             hp: 100,
-        }
-
-        // pour l'explosion en cas de defaite
-        const particles = []
-
-        // création des étoiles ( points )
-        const stars = []
-        for (let i = 0; i < 700; i++) {
-            stars.push({
-                x: Math.random() * map.width,
-                y: Math.random() * map.height,
-                r: Math.random() * 2,
-            })
         }
 
         // déplacement clavier
@@ -101,350 +52,6 @@ export const GameCanvas = (props) => {
 
         window.addEventListener("keydown", keyDown)
         window.addEventListener("keyup", keyUp)
-
-        // Touches de déplacement ( Z- S - Q - D )
-        function move() {
-            // le problème était que la balle se deplaçait par saut de 25px, donc passait au travers de certains murs
-            // la solution était donc de le faire déplacer pixel par pixel
-            let dx = 0
-            let dy = 0
-
-            if (keys["z"] || keys["Z"]) dy -= 1
-            if (keys["s"] || keys["S"]) dy += 1
-            if (keys["q"] || keys["Q"]) dx -= 1
-            if (keys["d"] || keys["D"]) dx += 1
-
-            // normalisation diagonale
-            if (dx !== 0 || dy !== 0) {
-                const length = Math.sqrt(dx * dx + dy * dy)
-                dx /= length
-                dy /= length
-            }
-
-            // on se déplace pixel après pixel
-            for (let i = 0; i < speed; i++) {
-                const oldX = player.x
-                const oldY = player.y
-
-                player.x += dx
-                player.y += dy
-
-                // si on touche le mur, on s'arrête
-                for (const wall of walls) {
-                    if (wallCollisionDetected(player, wall)) {
-                        player.x = oldX
-                        player.y = oldY
-                        return
-                    }
-                }
-
-                player.x = Math.max(player.r, Math.min(player.x, map.width - player.r))
-                player.y = Math.max(player.r, Math.min(player.y, map.height - player.r))
-            }
-        }
-
-        // on detecte les collisions avec le mur ici
-        function wallCollisionDetected(player, wall) {
-            const borderX = Math.max(wall.x, Math.min(player.x, wall.x + wall.width))
-            const borderY = Math.max(wall.y, Math.min(player.y, wall.y + wall.height))
-
-            const dx = player.x - borderX
-            const dy = player.y - borderY
-
-            return dx * dx + dy * dy < player.r * player.r
-        }
-
-        // On dessine la zone de danger
-        function drawDangerZone() {
-            ctx.save()
-
-            const zoneScreenX = zone.x - camera.x
-            const zoneScreenY = zone.y - camera.y
-
-            // On crée une forme composée de :
-            // 1. tout l'écran
-            // 2. le cercle de la zone safe
-            ctx.beginPath()
-            ctx.rect(0, 0, canvas.width, canvas.height)
-
-            ctx.arc(
-                zoneScreenX,
-                zoneScreenY,
-                zone.r,
-                0,
-                Math.PI * 2
-            )
-
-            // evenodd veut dire :
-            // remplir l'extérieur du cercle, pas l'intérieur
-            ctx.fillStyle = "rgba(224, 247, 255, 0.12)"
-            ctx.fill("evenodd")
-
-            ctx.restore()
-
-            // Bordure glow de la zone
-            ctx.save()
-
-            ctx.beginPath()
-            ctx.arc(
-                zoneScreenX,
-                zoneScreenY,
-                zone.r,
-                0,
-                Math.PI * 2
-            )
-
-            ctx.strokeStyle = "#e0f7ff"
-            ctx.lineWidth = 4
-            ctx.shadowColor = "#e0f7ff"
-            const zonePulse = 25 + Math.sin(performance.now() * 0.006) * 10
-            ctx.shadowBlur = zonePulse
-            ctx.stroke()
-
-            ctx.restore()
-        }
-
-        // configuration de la zone de danger
-        function out_of_danger_zone(time) {
-            // la zone de danger retrecit avec le temps
-            const elapsed = (time - game.startTime) / 1000
-            const progress = Math.min(elapsed / game.duration, 1)
-
-            zone.r = zone.rMax - (zone.rMax - zone.rMin) * progress
-
-            // on veut retourner la position du joueur par rapport à la zone de danger
-            const dx = player.x - zone.x
-            const dy = player.y - zone.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
-
-            return distance > zone.r
-        }
-
-        // potitionnement de la camera
-        function update_camera() {
-            camera.x = player.x - canvas.width / 2
-            camera.y = player.y - canvas.height / 2
-
-            // pour garder la camera sur la map
-            camera.x = Math.max(0, Math.min(camera.x, map.width - canvas.width))
-            camera.y = Math.max(0, Math.min(camera.y, map.height - canvas.height))
-        }
-
-        // on crée un tableau de particules
-        function createExplosion(x, y) {
-            for (let i = 0; i < 40; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    r: Math.random() * 4 + 2,
-                    dx: (Math.random() - 0.5) * 12,
-                    dy: (Math.random() - 0.5) * 12,
-                    life: 60,
-                    color: "#00eaff"
-                })
-            }
-        }
-
-        // on dessine les particules pour donner l'impression d'explosion
-        function drawParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i]
-
-                p.x += p.dx
-                p.y += p.dy
-                p.life -= 1
-                p.r *= 0.97
-
-                ctx.beginPath()
-                ctx.arc(
-                    p.x - camera.x,
-                    p.y - camera.y,
-                    p.r,
-                    0,
-                    Math.PI * 2
-                )
-
-                ctx.fillStyle = p.color
-                ctx.shadowColor = p.color
-                ctx.shadowBlur = 15
-                ctx.fill()
-
-                if (p.life <= 0 || p.r < 0.5) {
-                    particles.splice(i, 1)
-                }
-            }
-
-            ctx.shadowBlur = 0
-        }
-
-        // barre de vie
-        function healthBar() {
-            const x = 20
-            const y = 20
-            const width = 240
-            const height = 26
-            const radius = 13
-
-            const hpRatio = player.hp / 100
-            const hpWidth = width * hpRatio
-
-            ctx.shadowBlur = 0
-
-            // fond
-            ctx.fillStyle = "rgba(255, 255, 255, 0.12)"
-            ctx.beginPath()
-            ctx.roundRect(x, y, width, height, radius)
-            ctx.fill()
-
-            // couleur vie
-            ctx.fillStyle = "#00eaff"
-            ctx.beginPath()
-            ctx.roundRect(x, y, hpWidth, height, radius)
-            ctx.fill()
-
-            // contour glow
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"
-            ctx.lineWidth = 2
-            ctx.shadowColor = "#e0f7ff"
-            ctx.shadowBlur = 10
-            ctx.beginPath()
-            ctx.roundRect(x, y, width, height, radius)
-            ctx.stroke()
-
-            ctx.shadowBlur = 0
-        }
-
-        // configuration du timer
-        function drawTimer(time) {
-            const elapsed = (time - game.startTime) / 1000
-            const remaining = Math.max(0, game.duration - elapsed)
-
-            const minutes = Math.floor(remaining / 60)
-            const seconds = Math.floor(remaining % 60).toString().padStart(2, "0")
-
-            ctx.shadowBlur = 0
-            ctx.fillStyle = "white"
-            ctx.font = "700 32px Orbitron"
-            ctx.textAlign = "center"
-
-            ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2, 40)
-
-            ctx.textAlign = "left"
-        }
-
-        // conditions de victoire
-        function endGame(time) {
-            if (game.isOver) return
-
-            const elapsed = (time - game.startTime) / 1000
-            const remaining = Math.max(0, game.duration - elapsed)
-
-            if (player.hp <= 0) {
-                game.isOver = true
-                game.result = "Défaite"
-
-                if (!game.explosion) {
-                    createExplosion(player.x, player.y)
-                    game.explosion = true
-                }
-
-                return
-            }
-
-            if (remaining <= 0) {
-                game.isOver = true
-                game.result = "Victoire"
-
-                if (!game.explosion) {
-                    createExplosion(player.x, player.y)
-                    game.explosion = true
-                }
-
-                return
-            }
-        }
-
-        // écran de fin de jeu
-        function endScreen() {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)"
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-            ctx.shadowColor = "#e0f7ff"
-            ctx.shadowBlur = 20
-            ctx.fillStyle = "white"
-            ctx.font = "700 48px Orbitron"
-            ctx.textAlign = "center"
-
-            ctx.fillText(game.result, canvas.width / 2, canvas.height / 2)
-
-            ctx.shadowBlur = 0
-            ctx.font = "700 22px Orbitron"
-            ctx.fillText("Recharge la page pour recommencer", canvas.width / 2, canvas.height / 2 + 50)
-
-            ctx.textAlign = "left"
-        }
-
-        // on dessine le joueur
-        function drawPlayer() {
-            const pulse = 40 + Math.sin(performance.now() * 0.008) * 15
-
-            ctx.save()
-
-            ctx.beginPath()
-            ctx.arc(player.x - camera.x, player.y - camera.y, player.r, 0, 2 * Math.PI)
-
-            ctx.fillStyle = "cyan"
-            ctx.shadowColor = "#00eaff"
-            ctx.shadowBlur = pulse
-            ctx.fill()
-
-            ctx.restore()
-        }
-
-        // on dessine les murs
-        function drawWalls() {
-            ctx.save()
-
-            walls.forEach(wall => {
-                ctx.fillStyle = "#050505"
-                ctx.strokeStyle = "#e0f7ff"
-                ctx.lineWidth = 2
-                ctx.shadowColor = "#e0f7ff"
-                ctx.shadowBlur = 12
-
-                ctx.fillRect(
-                    wall.x - camera.x,
-                    wall.y - camera.y,
-                    wall.width,
-                    wall.height
-                )
-
-                ctx.strokeRect(
-                    wall.x - camera.x,
-                    wall.y - camera.y,
-                    wall.width,
-                    wall.height
-                )
-            })
-
-            ctx.restore()
-        }
-
-        // on dessine les étoiles
-        function drawStars() {
-            // paramètres étoiles
-            ctx.beginPath()
-            ctx.fillStyle = "white"
-            ctx.shadowBlur = 0
-
-            // affichage étoile
-            stars.forEach(star => {
-                ctx.moveTo(star.x - camera.x + star.r, star.y - camera.y)
-                ctx.arc(star.x - camera.x, star.y - camera.y, star.r, 0, 2 * Math.PI)
-            })
-            ctx.fill()
-
-        }
 
         // on configure la map
         function configMap() {
@@ -461,13 +68,13 @@ export const GameCanvas = (props) => {
             // on arrête le jeu s'il est fini
             if (game.isOver) {
                 configMap()
-                drawStars()
-                drawWalls()
-                drawDangerZone()
-                drawParticles()
+                drawStars(ctx, stars, camera)
+                drawWalls(ctx, camera, walls)
+                drawDangerZone(ctx, zone, camera, canvas)
+                drawParticles(ctx, particles, camera)
 
                 if (particles.length === 0) {
-                    endScreen()
+                    endScreen(ctx, canvas, game)
                     return
                 }
 
@@ -480,17 +87,17 @@ export const GameCanvas = (props) => {
             lastTime = time
 
             // mise à jour de la position du joueur en fonction de la touche appuyée
-            move()
+            movement(keys, speed, player, walls, map)
             // mise à jour de la camera
-            update_camera()
+            update_camera(player, camera, map, canvas)
 
             // initialisation de la zone de danger
-            if (out_of_danger_zone(time)) {
+            if (out_of_danger_zone(time, game, zone, player)) {
                 player.hp -= zone.damagePerSecond * deltaTime
                 if (player.hp < 0) player.hp = 0
             }
             // vérifier les conditions d'arrêts du jeu
-            endGame(time)
+            endGame(time, game, player, particles)
             if (game.isOver) {
                 animationId = requestAnimationFrame(screen)
                 return
@@ -499,17 +106,17 @@ export const GameCanvas = (props) => {
             // configuration de la map
             configMap()
             // dessin des étoiles
-            drawStars()
+            drawStars(ctx, stars, camera)
             // dessin des murs
-            drawWalls()
+            drawWalls(ctx, camera, walls)
             // affichage de la zone
-            drawDangerZone()
+            drawDangerZone(ctx, zone, camera, canvas)
             // dessin du joueur
-            drawPlayer()
+            drawPlayer(ctx, player, camera)
             // barre de vie du joueur
-            healthBar()
+            healthBar(ctx, player)
             // timer
-            drawTimer(time)
+            drawTimer(time, ctx, canvas, game)
 
             animationId = requestAnimationFrame(screen)
         }
