@@ -76,37 +76,44 @@ export const GameCanvas = (props) => {
 
         // Touches de déplacement ( Z- S - Q - D )
         function move() {
-            // on garde les anciennes positions pour gérer les collisions avec les murs
-            const oldX = player.x
-            const oldY = player.y
+            let dx = 0
+            let dy = 0
 
-            if (keys["z"] || keys["Z"]) player.y -= speed
-            if (keys["s"] || keys["S"]) player.y += speed
+            if (keys["z"] || keys["Z"]) dy -= 1
+            if (keys["s"] || keys["S"]) dy += 1
+            if (keys["q"] || keys["Q"]) dx -= 1
+            if (keys["d"] || keys["D"]) dx += 1
 
-            // on bouge pas en cas de collision ( pour X )
-            for (const wall of walls) {
-                if (wall_collision_detected(player, wall)) {
-                    player.x = oldX
-                    break
-                }
+            // normalisation diagonale
+            if (dx !== 0 || dy !== 0) {
+                const length = Math.sqrt(dx * dx + dy * dy)
+                dx /= length
+                dy /= length
             }
 
-            if (keys["q"] || keys["Q"]) player.x -= speed
-            if (keys["d"] || keys["D"]) player.x += speed
+            const steps = speed
 
-            // on bouge pas en cas de collision ( pour y )
-            for (const wall of walls) {
-                if (wall_collision_detected(player, wall)) {
-                    player.y = oldY
-                    break
+            for (let i = 0; i < steps; i++) {
+                const oldX = player.x
+                const oldY = player.y
+
+                player.x += dx
+                player.y += dy
+
+                for (const wall of walls) {
+                    if (wall_collision_detected(player, wall)) {
+                        player.x = oldX
+                        player.y = oldY
+                        return
+                    }
                 }
-            }
 
-            // pour ne pas sortir de la map
-            player.x = Math.max(player.r, Math.min(player.x, map.width - player.r))
-            player.y = Math.max(player.r, Math.min(player.y, map.height - player.r))
+                player.x = Math.max(player.r, Math.min(player.x, map.width - player.r))
+                player.y = Math.max(player.r, Math.min(player.y, map.height - player.r))
+            }
         }
 
+        // on detecte les collisions ici
         function wall_collision_detected(player, wall) {
             const borderX = Math.max(wall.x, Math.min(player.x, wall.x + wall.width))
             const borderY = Math.max(wall.y, Math.min(player.y, wall.y + wall.height))
