@@ -15,6 +15,7 @@ export const GameCanvas = (props) => {
 
         // paramétrage de la partie
         const game = {
+            startTime: performance.now(),
             duration: 150,
         }
 
@@ -28,9 +29,13 @@ export const GameCanvas = (props) => {
         const zone = {
             x: map.width / 2,
             y: map.height / 2,
-            r: 1200,
-            damage: 0.3,
+            r: 4000,
+            rMax: 4000,
+            rMin: 350,
+            damagePerSecond: 10,
         }
+
+        let lastTime = performance.now()
 
         // création de la caméra
         const camera = {
@@ -60,7 +65,7 @@ export const GameCanvas = (props) => {
         // informations du joueur ( boule )
         let player = {
             x: 200,
-            y: 150,
+            y: canvas.height,
             r: 25,
             hp: 100,
         }
@@ -140,7 +145,12 @@ export const GameCanvas = (props) => {
             return dx * dx + dy * dy < player.r * player.r
         }
 
-        function danger_zone(player, zone) {
+        function danger_zone(time) {
+            const elapsed = (time - game.startTime) / 1000
+            const progress = Math.min(elapsed / game.duration, 1)
+
+            zone.r = zone.rMax - (zone.rMax - zone.rMin) * progress
+
             const dx = player.x - zone.x
             const dy = player.y - zone.y
             const distance = Math.sqrt(dx * dx + dy * dy)
@@ -194,14 +204,19 @@ export const GameCanvas = (props) => {
             ctx.shadowBlur = 0
         }
 
-        function screen() {
+        function screen(time: number) {
+            // on veut des dgats par demi seconde
+            const deltaTime = (time - lastTime) / 1000
+            lastTime = time
+
             // mise à jour de la position du joueur en fonction de la touche appuyée
             move()
             // mise à jour de la camera
             update_camera()
+
             // initialisation de la zone de danger
-            if (danger_zone(player, zone)) {
-                player.hp -= zone.damage
+            if (danger_zone(time)) {
+                player.hp -= zone.damagePerSecond * deltaTime
                 if (player.hp < 0) player.hp = 0
             }
 
@@ -262,7 +277,7 @@ export const GameCanvas = (props) => {
         }
 
         // afficher feuille de dessin
-        screen()
+        requestAnimationFrame(screen)
 
         return () => {
             window.removeEventListener("keydown", keyDown)
