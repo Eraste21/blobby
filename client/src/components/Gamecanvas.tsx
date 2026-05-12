@@ -13,6 +13,11 @@ export const GameCanvas = (props) => {
         canvas.width = window.innerWidth
         canvas.height = window.innerHeight
 
+        // paramétrage de la partie
+        const game = {
+            duration: 150,
+        }
+
         // configuration de la map
         const map = {
             width: 5000,
@@ -24,7 +29,7 @@ export const GameCanvas = (props) => {
             x: map.width / 2,
             y: map.height / 2,
             r: 1200,
-            damage: 1,
+            damage: 0.3,
         }
 
         // création de la caméra
@@ -153,6 +158,42 @@ export const GameCanvas = (props) => {
             camera.y = Math.max(0, Math.min(camera.y, map.height - canvas.height))
         }
 
+        function healthBar() {
+            const x = 20
+            const y = 20
+            const width = 240
+            const height = 26
+            const radius = 13
+
+            const hpRatio = player.hp / 100
+            const hpWidth = width * hpRatio
+
+            ctx.shadowBlur = 0
+
+            // fond
+            ctx.fillStyle = "rgba(255, 255, 255, 0.12)"
+            ctx.beginPath()
+            ctx.roundRect(x, y, width, height, radius)
+            ctx.fill()
+
+            // couleur vie
+            ctx.fillStyle = "#00eaff"
+            ctx.beginPath()
+            ctx.roundRect(x, y, hpWidth, height, radius)
+            ctx.fill()
+
+            // contour glow
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"
+            ctx.lineWidth = 2
+            ctx.shadowColor = "#e0f7ff"
+            ctx.shadowBlur = 10
+            ctx.beginPath()
+            ctx.roundRect(x, y, width, height, radius)
+            ctx.stroke()
+
+            ctx.shadowBlur = 0
+        }
+
         function screen() {
             // mise à jour de la position du joueur en fonction de la touche appuyée
             move()
@@ -199,10 +240,10 @@ export const GameCanvas = (props) => {
             // affichage de la zone
             ctx.beginPath()
             ctx.arc(zone.x - camera.x, zone.y - camera.y, zone.r, 0, 2 * Math.PI)
-            ctx.strokeStyle = "ff003c"
+            ctx.strokeStyle = "#e0f7ff"
             ctx.lineWidth = 4
-            ctx.shadowColor = "ff003c"
-            ctx.shadowBlur = 20
+            ctx.shadowColor = "#e0f7ff"
+            ctx.shadowBlur = 30
             ctx.stroke()
 
             // paramètre et affichage du joueur ( boule )
@@ -212,6 +253,10 @@ export const GameCanvas = (props) => {
             ctx.shadowColor = "#00eaff"
             ctx.shadowBlur = 60
             ctx.fill()
+            ctx.shadowBlur = 0
+
+            // barre de vie du joueur
+            healthBar()
 
             requestAnimationFrame(screen)
         }
