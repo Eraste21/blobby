@@ -127,7 +127,7 @@ export const GameCanvas = (props) => {
 
                 // si on touche le mur, on s'arrête
                 for (const wall of walls) {
-                    if (wall_collision_detected(player, wall)) {
+                    if (wallCollisionDetected(player, wall)) {
                         player.x = oldX
                         player.y = oldY
                         return
@@ -140,7 +140,7 @@ export const GameCanvas = (props) => {
         }
 
         // on detecte les collisions ici
-        function wall_collision_detected(player, wall) {
+        function wallCollisionDetected(player, wall) {
             const borderX = Math.max(wall.x, Math.min(player.x, wall.x + wall.width))
             const borderY = Math.max(wall.y, Math.min(player.y, wall.y + wall.height))
 
@@ -150,12 +150,63 @@ export const GameCanvas = (props) => {
             return dx * dx + dy * dy < player.r * player.r
         }
 
-        function danger_zone(time) {
+        function drawDangerZone() {
+            ctx.save()
+
+            const zoneScreenX = zone.x - camera.x
+            const zoneScreenY = zone.y - camera.y
+
+            // On crée une forme composée :
+            // 1. tout l'écran
+            // 2. le cercle de la zone safe
+            ctx.beginPath()
+            ctx.rect(0, 0, canvas.width, canvas.height)
+
+            ctx.arc(
+                zoneScreenX,
+                zoneScreenY,
+                zone.r,
+                0,
+                Math.PI * 2
+            )
+
+            // evenodd veut dire :
+            // remplir l'extérieur du cercle, pas l'intérieur
+            ctx.fillStyle = "rgba(224, 247, 255, 0.12)"
+            ctx.fill("evenodd")
+
+            ctx.restore()
+
+            // Bordure glow de la zone
+            ctx.save()
+
+            ctx.beginPath()
+            ctx.arc(
+                zoneScreenX,
+                zoneScreenY,
+                zone.r,
+                0,
+                Math.PI * 2
+            )
+
+            ctx.strokeStyle = "#e0f7ff"
+            ctx.lineWidth = 4
+            ctx.shadowColor = "#e0f7ff"
+            ctx.shadowBlur = 30
+            ctx.stroke()
+
+            ctx.restore()
+        }
+
+        // configuration de la zone de danger
+        function out_of_danger_zone(time) {
+            // la zone de danger retrecit avec le temps
             const elapsed = (time - game.startTime) / 1000
             const progress = Math.min(elapsed / game.duration, 1)
 
             zone.r = zone.rMax - (zone.rMax - zone.rMin) * progress
 
+            // on veut retourner la position du joueur par rapport à la zone de danger
             const dx = player.x - zone.x
             const dy = player.y - zone.y
             const distance = Math.sqrt(dx * dx + dy * dy)
@@ -264,6 +315,57 @@ export const GameCanvas = (props) => {
             ctx.textAlign = "left"
         }
 
+        function drawPlayer() {
+            // paramètre et affichage du joueur ( boule )
+            ctx.beginPath()
+            ctx.arc(player.x - camera.x, player.y - camera.y, player.r, 0, 2 * Math.PI)
+            ctx.fillStyle = "cyan";
+            ctx.shadowColor = "#00eaff"
+            ctx.shadowBlur = 60
+            ctx.fill()
+            ctx.shadowBlur = 0
+
+        }
+
+        function drawWalls() {
+            // affichage murs
+            ctx.fillStyle = "white"
+            ctx.shadowBlur = 0
+
+            walls.forEach(wall => {
+                ctx.fillRect(
+                    wall.x - camera.x,
+                    wall.y - camera.y,
+                    wall.width,
+                    wall.height,
+                )
+            })
+        }
+
+        function drawStars() {
+            // paramètres étoiles
+            ctx.beginPath()
+            ctx.fillStyle = "white"
+            ctx.shadowBlur = 0
+
+            // affichage étoile
+            stars.forEach(star => {
+                ctx.moveTo(star.x - camera.x + star.r, star.y - camera.y)
+                ctx.arc(star.x - camera.x, star.y - camera.y, star.r, 0, 2 * Math.PI)
+            })
+            ctx.fill()
+
+        }
+
+        function configMap() {
+            // reset écran
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+            // paramètres de la map
+            ctx.fillStyle = '#000000'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+        }
+
         // écran de jeu
         function screen(time: number) {
             // on arrête le jeu s'il est fini
@@ -282,7 +384,7 @@ export const GameCanvas = (props) => {
             update_camera()
 
             // initialisation de la zone de danger
-            if (danger_zone(time)) {
+            if (out_of_danger_zone(time)) {
                 player.hp -= zone.damagePerSecond * deltaTime
                 if (player.hp < 0) player.hp = 0
             }
@@ -293,56 +395,16 @@ export const GameCanvas = (props) => {
                 return
             }
 
-            // reset écran
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-            // paramètres de la map
-            ctx.fillStyle = '#000000'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-            // paramètres étoiles
-            ctx.beginPath()
-            ctx.fillStyle = "white"
-            ctx.shadowBlur = 0
-
-            // affichage étoile
-            stars.forEach(star => {
-                ctx.moveTo(star.x - camera.x + star.r, star.y - camera.y)
-                ctx.arc(star.x - camera.x, star.y - camera.y, star.r, 0, 2 * Math.PI)
-            })
-            ctx.fill()
-
-            // affichage murs
-            ctx.fillStyle = "white"
-            ctx.shadowBlur = 0
-
-            walls.forEach(wall => {
-                ctx.fillRect(
-                    wall.x - camera.x,
-                    wall.y - camera.y,
-                    wall.width,
-                    wall.height,
-                )
-            })
-
+            // configuration de la map
+            configMap()
+            // dessin des étoiles
+            drawStars()
+            // dessin des murs
+            drawWalls()
+            // dessin du joueur
+            drawPlayer()
             // affichage de la zone
-            ctx.beginPath()
-            ctx.arc(zone.x - camera.x, zone.y - camera.y, zone.r, 0, 2 * Math.PI)
-            ctx.strokeStyle = "#e0f7ff"
-            ctx.lineWidth = 4
-            ctx.shadowColor = "#e0f7ff"
-            ctx.shadowBlur = 30
-            ctx.stroke()
-
-            // paramètre et affichage du joueur ( boule )
-            ctx.beginPath()
-            ctx.arc(player.x - camera.x, player.y - camera.y, player.r, 0, 2 * Math.PI)
-            ctx.fillStyle = "cyan";
-            ctx.shadowColor = "#00eaff"
-            ctx.shadowBlur = 60
-            ctx.fill()
-            ctx.shadowBlur = 0
-
+            drawDangerZone()
             // barre de vie du joueur
             healthBar()
             // timer
