@@ -22,6 +22,7 @@ export const GameCanvas = (props) => {
             duration: 150,
             isOver: false,
             result: "",
+            explosion: false,
         }
 
         // configuration de la map
@@ -34,8 +35,8 @@ export const GameCanvas = (props) => {
         const zone = {
             x: map.width / 2,
             y: map.height / 2,
-            r: 4000,
-            rMax: 4000,
+            r: 1000,
+            rMax: 1000,
             rMin: 350,
             damagePerSecond: 10,
         }
@@ -74,6 +75,9 @@ export const GameCanvas = (props) => {
             r: 25,
             hp: 100,
         }
+
+        // pour l'explosion en cas de defaite
+        const particles = []
 
         // création des étoiles ( points )
         const stars = []
@@ -139,7 +143,7 @@ export const GameCanvas = (props) => {
             }
         }
 
-        // on detecte les collisions ici
+        // on detecte les collisions avec le mur ici
         function wallCollisionDetected(player, wall) {
             const borderX = Math.max(wall.x, Math.min(player.x, wall.x + wall.width))
             const borderY = Math.max(wall.y, Math.min(player.y, wall.y + wall.height))
@@ -150,13 +154,14 @@ export const GameCanvas = (props) => {
             return dx * dx + dy * dy < player.r * player.r
         }
 
+        // On dessine la zone de danger
         function drawDangerZone() {
             ctx.save()
 
             const zoneScreenX = zone.x - camera.x
             const zoneScreenY = zone.y - camera.y
 
-            // On crée une forme composée :
+            // On crée une forme composée de :
             // 1. tout l'écran
             // 2. le cercle de la zone safe
             ctx.beginPath()
@@ -224,6 +229,51 @@ export const GameCanvas = (props) => {
             camera.y = Math.max(0, Math.min(camera.y, map.height - canvas.height))
         }
 
+        function createExplosion(x, y) {
+            for (let i = 0; i < 40; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    r: Math.random() * 4 + 2,
+                    dx: (Math.random() - 0.5) * 12,
+                    dy: (Math.random() - 0.5) * 12,
+                    life: 60,
+                    color: "#00eaff"
+                })
+            }
+        }
+
+        function drawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i]
+
+                p.x += p.dx
+                p.y += p.dy
+                p.life -= 1
+                p.r *= 0.97
+
+                ctx.beginPath()
+                ctx.arc(
+                    p.x - camera.x,
+                    p.y - camera.y,
+                    p.r,
+                    0,
+                    Math.PI * 2
+                )
+
+                ctx.fillStyle = p.color
+                ctx.shadowColor = p.color
+                ctx.shadowBlur = 15
+                ctx.fill()
+
+                if (p.life <= 0 || p.r < 0.5) {
+                    particles.splice(i, 1)
+                }
+            }
+
+            ctx.shadowBlur = 0
+        }
+
         // barre de vie
         function healthBar() {
             const x = 20
@@ -281,17 +331,33 @@ export const GameCanvas = (props) => {
 
         // conditions de victoire
         function endGame(time) {
+            if (game.isOver) return
+
             const elapsed = (time - game.startTime) / 1000
             const remaining = Math.max(0, game.duration - elapsed)
 
             if (player.hp <= 0) {
                 game.isOver = true
                 game.result = "Défaite"
+
+                if (!game.explosion) {
+                    createExplosion(player.x, player.y)
+                    game.explosion = true
+                }
+
+                return
             }
 
             if (remaining <= 0) {
                 game.isOver = true
                 game.result = "Victoire"
+
+                if (!game.explosionStarted) {
+                    createExplosion(player.x, player.y)
+                    game.explosionStarted = true
+                }
+
+                return
             }
         }
 
@@ -370,7 +436,18 @@ export const GameCanvas = (props) => {
         function screen(time: number) {
             // on arrête le jeu s'il est fini
             if (game.isOver) {
-                endScreen()
+                configMap()
+                drawStars()
+                drawWalls()
+                drawDangerZone()
+                drawParticles()
+
+                if (particles.length === 0) {
+                    endScreen()
+                    return
+                }
+
+                animationId = requestAnimationFrame(screen)
                 return
             }
 
@@ -391,7 +468,7 @@ export const GameCanvas = (props) => {
             // vérifier les conditions d'arrêts du jeu
             endGame(time)
             if (game.isOver) {
-                endScreen()
+                animationId = requestAnimationFrame(screen)
                 return
             }
 
@@ -410,7 +487,7 @@ export const GameCanvas = (props) => {
             // timer
             timer(time)
 
-            requestAnimationFrame(screen)
+            animationId = requestAnimationFrame(screen)
         }
 
         // afficher feuille de dessin
