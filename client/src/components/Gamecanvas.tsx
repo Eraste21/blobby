@@ -197,7 +197,8 @@ export const GameCanvas = (props) => {
             ctx.strokeStyle = "#e0f7ff"
             ctx.lineWidth = 4
             ctx.shadowColor = "#e0f7ff"
-            ctx.shadowBlur = 30
+            const zonePulse = 25 + Math.sin(performance.now() * 0.006) * 10
+            ctx.shadowBlur = zonePulse
             ctx.stroke()
 
             ctx.restore()
@@ -229,6 +230,7 @@ export const GameCanvas = (props) => {
             camera.y = Math.max(0, Math.min(camera.y, map.height - canvas.height))
         }
 
+        // on crée un tableau de particules
         function createExplosion(x, y) {
             for (let i = 0; i < 40; i++) {
                 particles.push({
@@ -243,6 +245,7 @@ export const GameCanvas = (props) => {
             }
         }
 
+        // on dessine les particules pour donner l'impression d'explosion
         function drawParticles() {
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i]
@@ -312,7 +315,7 @@ export const GameCanvas = (props) => {
         }
 
         // configuration du timer
-        function timer(time) {
+        function drawTimer(time) {
             const elapsed = (time - game.startTime) / 1000
             const remaining = Math.max(0, game.duration - elapsed)
 
@@ -321,7 +324,7 @@ export const GameCanvas = (props) => {
 
             ctx.shadowBlur = 0
             ctx.fillStyle = "white"
-            ctx.font = "28px Arial"
+            ctx.font = "700 32px Orbitron"
             ctx.textAlign = "center"
 
             ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2, 40)
@@ -352,9 +355,9 @@ export const GameCanvas = (props) => {
                 game.isOver = true
                 game.result = "Victoire"
 
-                if (!game.explosionStarted) {
+                if (!game.explosion) {
                     createExplosion(player.x, player.y)
-                    game.explosionStarted = true
+                    game.explosion = true
                 }
 
                 return
@@ -369,45 +372,65 @@ export const GameCanvas = (props) => {
             ctx.shadowColor = "#e0f7ff"
             ctx.shadowBlur = 20
             ctx.fillStyle = "white"
-            ctx.font = "48px Arial"
+            ctx.font = "700 48px Orbitron"
             ctx.textAlign = "center"
 
             ctx.fillText(game.result, canvas.width / 2, canvas.height / 2)
 
             ctx.shadowBlur = 0
-            ctx.font = "22px Arial"
+            ctx.font = "700 22px Orbitron"
             ctx.fillText("Recharge la page pour recommencer", canvas.width / 2, canvas.height / 2 + 50)
 
             ctx.textAlign = "left"
         }
 
+        // on dessine le joueur
         function drawPlayer() {
-            // paramètre et affichage du joueur ( boule )
+            const pulse = 40 + Math.sin(performance.now() * 0.008) * 15
+
+            ctx.save()
+
             ctx.beginPath()
             ctx.arc(player.x - camera.x, player.y - camera.y, player.r, 0, 2 * Math.PI)
-            ctx.fillStyle = "cyan";
-            ctx.shadowColor = "#00eaff"
-            ctx.shadowBlur = 60
-            ctx.fill()
-            ctx.shadowBlur = 0
 
+            ctx.fillStyle = "cyan"
+            ctx.shadowColor = "#00eaff"
+            ctx.shadowBlur = pulse
+            ctx.fill()
+
+            ctx.restore()
         }
 
+        // on dessine les murs
         function drawWalls() {
-            // affichage murs
-            ctx.fillStyle = "white"
-            ctx.shadowBlur = 0
+            ctx.save()
 
             walls.forEach(wall => {
+                ctx.fillStyle = "#050505"
+                ctx.strokeStyle = "#e0f7ff"
+                ctx.lineWidth = 2
+                ctx.shadowColor = "#e0f7ff"
+                ctx.shadowBlur = 12
+
                 ctx.fillRect(
                     wall.x - camera.x,
                     wall.y - camera.y,
                     wall.width,
-                    wall.height,
+                    wall.height
+                )
+
+                ctx.strokeRect(
+                    wall.x - camera.x,
+                    wall.y - camera.y,
+                    wall.width,
+                    wall.height
                 )
             })
+
+            ctx.restore()
         }
 
+        // on dessine les étoiles
         function drawStars() {
             // paramètres étoiles
             ctx.beginPath()
@@ -423,6 +446,7 @@ export const GameCanvas = (props) => {
 
         }
 
+        // on configure la map
         function configMap() {
             // reset écran
             ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -478,14 +502,14 @@ export const GameCanvas = (props) => {
             drawStars()
             // dessin des murs
             drawWalls()
-            // dessin du joueur
-            drawPlayer()
             // affichage de la zone
             drawDangerZone()
+            // dessin du joueur
+            drawPlayer()
             // barre de vie du joueur
             healthBar()
             // timer
-            timer(time)
+            drawTimer(time)
 
             animationId = requestAnimationFrame(screen)
         }
