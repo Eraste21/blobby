@@ -19,6 +19,14 @@ export const GameCanvas = (props) => {
             height: 3500,
         }
 
+        // création de la zone de danger
+        const zone = {
+            x: map.width / 2,
+            y: map.height / 2,
+            r: 1200,
+            damage: 1,
+        }
+
         // création de la caméra
         const camera = {
             x: 0,
@@ -49,11 +57,12 @@ export const GameCanvas = (props) => {
             x: 200,
             y: 150,
             r: 25,
+            hp: 100,
         }
 
         // création des étoiles ( points )
         const dots = []
-        for (let i = 0; i < 1000; i++) {
+        for (let i = 0; i < 700; i++) {
             dots.push({
                 x: Math.random() * map.width,
                 y: Math.random() * map.height,
@@ -76,6 +85,8 @@ export const GameCanvas = (props) => {
 
         // Touches de déplacement ( Z- S - Q - D )
         function move() {
+            // le problème était que la balle se deplaçait par saut de 25px, donc passait au travers de certains murs
+            // la solution était donc de le faire déplacer pixel par pixel
             let dx = 0
             let dy = 0
 
@@ -91,15 +102,15 @@ export const GameCanvas = (props) => {
                 dy /= length
             }
 
-            const steps = speed
-
-            for (let i = 0; i < steps; i++) {
+            // on se déplace pixel après pixel
+            for (let i = 0; i < speed; i++) {
                 const oldX = player.x
                 const oldY = player.y
 
                 player.x += dx
                 player.y += dy
 
+                // si on touche le mur, on s'arrête
                 for (const wall of walls) {
                     if (wall_collision_detected(player, wall)) {
                         player.x = oldX
@@ -124,6 +135,14 @@ export const GameCanvas = (props) => {
             return dx * dx + dy * dy < player.r * player.r
         }
 
+        function danger_zone(player, zone) {
+            const dx = player.x - zone.x
+            const dy = player.y - zone.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+
+            return distance > zone.r
+        }
+
         // potitionnement de la camera
         function update_camera() {
             camera.x = player.x - canvas.width / 2
@@ -139,6 +158,11 @@ export const GameCanvas = (props) => {
             move()
             // mise à jour de la camera
             update_camera()
+            // initialisation de la zone de danger
+            if (danger_zone(player, zone)) {
+                player.hp -= zone.damage
+                if (player.hp < 0) player.hp = 0
+            }
 
             // reset écran
             ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -171,6 +195,15 @@ export const GameCanvas = (props) => {
                     wall.height,
                 )
             })
+
+            // affichage de la zone
+            ctx.beginPath()
+            ctx.arc(zone.x - camera.x, zone.y - camera.y, zone.r, 0, 2 * Math.PI)
+            ctx.strokeStyle = "ff003c"
+            ctx.lineWidth = 4
+            ctx.shadowColor = "ff003c"
+            ctx.shadowBlur = 20
+            ctx.stroke()
 
             // paramètre et affichage du joueur ( boule )
             ctx.beginPath()
