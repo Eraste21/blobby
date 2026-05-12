@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { map, zone, game, camera, walls, stars, particles } from "./game/config"
+import { map, zone, game, camera, walls, stars, particles, speed } from "./game/config"
 import { drawWalls } from "./game/drawWalls"
 import { movement } from "./game/movement"
 import { drawPlayer } from "./game/drawPlayer"
@@ -10,6 +10,7 @@ import { update_camera } from "./game/camera"
 import { endGame, endScreen } from "./game/endGame"
 import { healthBar } from "./utils/healthBar"
 import { drawTimer } from "./game/drawTimer"
+import { configMap } from "./game/drawMap"
 
 export const GameCanvas = (props) => {
 
@@ -28,9 +29,6 @@ export const GameCanvas = (props) => {
         canvas.height = window.innerHeight
 
         let lastTime = performance.now()
-
-        // vitesse de deplacement
-        let speed = 25
 
         // informations du joueur ( boule )
         let player = {
@@ -53,21 +51,13 @@ export const GameCanvas = (props) => {
         window.addEventListener("keydown", keyDown)
         window.addEventListener("keyup", keyUp)
 
-        // on configure la map
-        function configMap() {
-            // reset écran
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-            // paramètres de la map
-            ctx.fillStyle = '#000000'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-        }
 
         // écran de jeu
         function screen(time: number) {
             // on arrête le jeu s'il est fini
             if (game.isOver) {
-                configMap()
+                configMap(ctx, canvas)
                 drawStars(ctx, stars, camera)
                 drawWalls(ctx, camera, walls)
                 drawDangerZone(ctx, zone, camera, canvas)
@@ -104,7 +94,7 @@ export const GameCanvas = (props) => {
             }
 
             // configuration de la map
-            configMap()
+            configMap(ctx, canvas)
             // dessin des étoiles
             drawStars(ctx, stars, camera)
             // dessin des murs

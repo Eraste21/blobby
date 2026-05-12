@@ -17,9 +17,9 @@ export const map = {
 export const zone = {
     x: map.width / 2,
     y: map.height / 2,
-    r: 1000,
-    rMax: 1000,
-    rMin: 350,
+    r: 4000,
+    rMax: 4000,
+    rMin: 800,
     damagePerSecond: 10,
 }
 // création de la caméra
@@ -57,3 +57,6 @@ for (let i = 0; i < 700; i++) {
 
 // pour l'explosion en cas de defaite
 export const particles = []
+
+// vitesse de deplacement
+export let speed = 25
