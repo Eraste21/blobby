@@ -60,3 +60,6 @@ export const particles = []
 
 // vitesse de deplacement
 export let speed = 25
+
+// déplacement clavier
+export const keys = {}
