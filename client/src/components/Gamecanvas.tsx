@@ -168,6 +168,7 @@ export const GameCanvas = (props) => {
             camera.y = Math.max(0, Math.min(camera.y, map.height - canvas.height))
         }
 
+        // barre de vie
         function healthBar() {
             const x = 20
             const y = 20
@@ -204,6 +205,25 @@ export const GameCanvas = (props) => {
             ctx.shadowBlur = 0
         }
 
+        // configuration du timer
+        function timer(time) {
+            const elapsed = (time - game.startTime) / 1000
+            const remaining = Math.max(0, game.duration - elapsed)
+
+            const minutes = Math.floor(remaining / 60)
+            const seconds = Math.floor(remaining % 60).toString().padStart(2, "0")
+
+            ctx.shadowBlur = 0
+            ctx.fillStyle = "white"
+            ctx.font = "28px Arial"
+            ctx.textAlign = "center"
+
+            ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2, 40)
+
+            ctx.textAlign = "left"
+        }
+
+        // écran de jeu
         function screen(time: number) {
             // on veut des dgats par demi seconde
             const deltaTime = (time - lastTime) / 1000
@@ -272,6 +292,8 @@ export const GameCanvas = (props) => {
 
             // barre de vie du joueur
             healthBar()
+            // timer
+            timer(time)
 
             requestAnimationFrame(screen)
         }
