@@ -5,6 +5,9 @@ export const GameCanvas = (props) => {
     const canvasRef = useRef(null)
 
     useEffect(() => {
+        // pour éviter de lancer 2 fois le use effect
+        let animationId
+
         // configuration du canvas ( écran de jeu )
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
@@ -17,6 +20,8 @@ export const GameCanvas = (props) => {
         const game = {
             startTime: performance.now(),
             duration: 150,
+            isOver: false,
+            result: "",
         }
 
         // configuration de la map
@@ -71,9 +76,9 @@ export const GameCanvas = (props) => {
         }
 
         // création des étoiles ( points )
-        const dots = []
+        const stars = []
         for (let i = 0; i < 700; i++) {
-            dots.push({
+            stars.push({
                 x: Math.random() * map.width,
                 y: Math.random() * map.height,
                 r: Math.random() * 2,
@@ -223,8 +228,50 @@ export const GameCanvas = (props) => {
             ctx.textAlign = "left"
         }
 
+        // conditions de victoire
+        function endGame(time) {
+            const elapsed = (time - game.startTime) / 1000
+            const remaining = Math.max(0, game.duration - elapsed)
+
+            if (player.hp <= 0) {
+                game.isOver = true
+                game.result = "Défaite"
+            }
+
+            if (remaining <= 0) {
+                game.isOver = true
+                game.result = "Victoire"
+            }
+        }
+
+        // écran de fin de jeu
+        function endScreen() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)"
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+            ctx.shadowColor = "#e0f7ff"
+            ctx.shadowBlur = 20
+            ctx.fillStyle = "white"
+            ctx.font = "48px Arial"
+            ctx.textAlign = "center"
+
+            ctx.fillText(game.result, canvas.width / 2, canvas.height / 2)
+
+            ctx.shadowBlur = 0
+            ctx.font = "22px Arial"
+            ctx.fillText("Recharge la page pour recommencer", canvas.width / 2, canvas.height / 2 + 50)
+
+            ctx.textAlign = "left"
+        }
+
         // écran de jeu
         function screen(time: number) {
+            // on arrête le jeu s'il est fini
+            if (game.isOver) {
+                endScreen()
+                return
+            }
+
             // on veut des dgats par demi seconde
             const deltaTime = (time - lastTime) / 1000
             lastTime = time
@@ -238,6 +285,12 @@ export const GameCanvas = (props) => {
             if (danger_zone(time)) {
                 player.hp -= zone.damagePerSecond * deltaTime
                 if (player.hp < 0) player.hp = 0
+            }
+            // vérifier les conditions d'arrêts du jeu
+            endGame(time)
+            if (game.isOver) {
+                endScreen()
+                return
             }
 
             // reset écran
@@ -253,9 +306,9 @@ export const GameCanvas = (props) => {
             ctx.shadowBlur = 0
 
             // affichage étoile
-            dots.forEach(dot => {
-                ctx.moveTo(dot.x - camera.x + dot.r, dot.y - camera.y)
-                ctx.arc(dot.x - camera.x, dot.y - camera.y, dot.r, 0, 2 * Math.PI)
+            stars.forEach(star => {
+                ctx.moveTo(star.x - camera.x + star.r, star.y - camera.y)
+                ctx.arc(star.x - camera.x, star.y - camera.y, star.r, 0, 2 * Math.PI)
             })
             ctx.fill()
 
@@ -299,11 +352,13 @@ export const GameCanvas = (props) => {
         }
 
         // afficher feuille de dessin
-        requestAnimationFrame(screen)
+        animationId = requestAnimationFrame(screen)
 
         return () => {
             window.removeEventListener("keydown", keyDown)
             window.removeEventListener("keyup", keyUp)
+
+            if (animationId) cancelAnimationFrame(animationId)
         }
     }, [])
     return (
